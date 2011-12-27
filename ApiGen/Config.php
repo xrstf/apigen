@@ -327,22 +327,46 @@ class Config
 
 		// Template resources
 		array_walk_recursive($config['resources'], function(&$value) use ($filePath) {
-			$value = $filePath . DIRECTORY_SEPARATOR . $value;
+			if ('^' !== $value{0}) {
+				$value = $filePath . DIRECTORY_SEPARATOR . $value;
+			}
 		});
 
 		// Template paths
 		foreach (array_keys($config['templates']) as $section) {
 			array_walk_recursive($config['templates'][$section], function(&$value, $key, $section) use ($filePath) {
-				if ('common' === $section || 'template' === $key) {
+				if ('^' !== $value{0} && ('common' === $section || 'template' === $key)) {
 					$value = $filePath . DIRECTORY_SEPARATOR . $value;
 				}
 			}, $section);
 		}
 
-		// Templates inheritance
-		if (isset($config['parent'])) {
-			$parentConfig = $this->parseTemplateConfig($config['parent'], $fileName);
+		// Get the parent configuration file
+		$parentConfig = isset($config['parent']) ? $this->parseTemplateConfig($config['parent'], $fileName) : array();
 
+		// Explicit inheritance
+		array_walk_recursive($config, function(&$value) use ($parentConfig) {
+			if ('^' === $value{0} && '^' !== $value) {
+				$valueDefinition = substr($value, 1);
+				if (empty($parentConfig)) {
+					throw new Exception(sprintf('Cannot inherit "%s" value from a parent configuration file. No parent file defined.', $valueDefinition), Exception::INVALID_CONFIG);
+				}
+
+				$s = $parentConfig;
+				$valueParts = explode('.', $valueDefinition);
+				foreach ($valueParts as $i => $part) {
+					if (!isset($s[$part])) {
+						throw new Exception(sprintf('Cannot inherit "%s" value from a parent configuration file. Configuration option/section "%s" does not exist in the parent file.', $valueDefinition, implode('.', array_slice($valueParts, 0, $i + 1))), Exception::INVALID_CONFIG);
+					}
+
+					$s = $s[$part];
+				}
+
+				$value = $s;
+			}
+		});
+
+		if (!empty($parentConfig)) {
 			// We cannot simply use array_merge_recursive because of the way it merges arrays :(
 			$config = $this->mergeConfig($config, $parentConfig);
 		}
