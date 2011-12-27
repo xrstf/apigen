@@ -311,24 +311,18 @@ class Config
 		$filePath = dirname($fileName);
 
 		// Template resources
-		$resources = array();
-		array_walk($config['resources'], function($value, $key) use ($filePath, &$resources) {
-			$resources[$filePath . DIRECTORY_SEPARATOR . $key] = $value;
+		array_walk($config['resources'], function(&$value) use ($filePath) {
+			$value = $filePath . DIRECTORY_SEPARATOR . $value;
 		});
-		$config['resources'] = $resources;
 
 		// Template paths
-		$common = array();
 		foreach (array_keys($config['templates']) as $section) {
-			array_walk_recursive($config['templates'][$section], function(&$value, $key, $section) use ($filePath, &$common) {
-				if ('common' === $section) {
-					$common[$filePath . DIRECTORY_SEPARATOR . $key] = $value;
-				} elseif ('template' === $key) {
+			array_walk_recursive($config['templates'][$section], function(&$value, $key, $section) use ($filePath) {
+				if ('common' === $section || 'template' === $key) {
 					$value = $filePath . DIRECTORY_SEPARATOR . $value;
 				}
 			}, $section);
 		}
-		$config['templates']['common'] = $common;
 
 		return $config;
 	}

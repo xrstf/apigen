@@ -340,7 +340,7 @@ class Generator extends Nette\Object
 		}
 
 		// Copy resources
-		foreach ($this->config->template['resources'] as $resourceSource => $resourceDestination) {
+		foreach ($this->config->template['resources'] as $resourceDestination => $resourceSource) {
 			// File
 			if (is_file($resourceSource)) {
 				copy($resourceSource, $this->forceDir($this->config->destination . DIRECTORY_SEPARATOR . $resourceDestination));
@@ -600,7 +600,7 @@ class Generator extends Nette\Object
 		});
 		$template->elements = $elements;
 
-		foreach ($this->config->template['templates']['common'] as $source => $destination) {
+		foreach ($this->config->template['templates']['common'] as $destination => $source) {
 			$template
 				->setFile($source)
 				->save($this->forceDir($this->config->destination . DIRECTORY_SEPARATOR . $destination));
