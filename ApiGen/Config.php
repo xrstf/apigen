@@ -305,7 +305,32 @@ class Config
 			throw new Exception(sprintf('Could not load template configuration file "%s".', $fileName), Exception::INVALID_CONFIG);
 		}
 
-		return Neon::decode(file_get_contents($fileName));
+		$config = Neon::decode(file_get_contents($fileName));
+
+		// Make all paths absolute so it will be possible to inherit them
+		$filePath = dirname($fileName);
+
+		// Template resources
+		$resources = array();
+		array_walk($config['resources'], function($value, $key) use ($filePath, &$resources) {
+			$resources[$filePath . DIRECTORY_SEPARATOR . $key] = $value;
+		});
+		$config['resources'] = $resources;
+
+		// Template paths
+		$common = array();
+		foreach (array_keys($config['templates']) as $section) {
+			array_walk_recursive($config['templates'][$section], function(&$value, $key, $section) use ($filePath, &$common) {
+				if ('common' === $section) {
+					$common[$filePath . DIRECTORY_SEPARATOR . $key] = $value;
+				} elseif ('template' === $key) {
+					$value = $filePath . DIRECTORY_SEPARATOR . $value;
+				}
+			}, $section);
+		}
+		$config['templates']['common'] = $common;
+
+		return $config;
 	}
 
 	/**
@@ -375,7 +400,7 @@ class Config
 				if (!isset($config['template'])) {
 					throw new Exception(sprintf('Template for %s is not defined', $type), Exception::INVALID_CONFIG);
 				}
-				if (!is_file(dirname($this->config['templateConfig']) . DIRECTORY_SEPARATOR . $config['template'])) {
+				if (!is_file($config['template'])) {
 					throw new Exception(sprintf('Template for %s doesn\'t exist', $type), Exception::INVALID_CONFIG);
 				}
 			}
