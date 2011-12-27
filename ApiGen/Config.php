@@ -83,8 +83,7 @@ class Config
 	private static $pathOptions = array(
 		'config',
 		'source',
-		'destination',
-		'templateConfig'
+		'destination'
 	);
 
 	/**
@@ -160,11 +159,7 @@ class Config
 			$this->options['config'] = $this->getDefaultConfigPath();
 		}
 		if (isset($this->options['config']) && is_file($this->options['config'])) {
-			$neon = Neon::decode(file_get_contents($this->options['config']));
-			if (isset($neon['templateConfig']) && !preg_match('~/|[a-z]:~Ai', $neon['templateConfig'])) {
-				$neon['templateConfig'] = dirname($this->options['config']) . DIRECTORY_SEPARATOR . $neon['templateConfig'];
-			}
-			$this->config = array_merge($this->config, $neon);
+			$this->config = array_merge($this->config, Neon::decode(file_get_contents($this->options['config'])));
 		}
 
 		// Parse options
@@ -259,22 +254,58 @@ class Config
 		// Check
 		$this->check();
 
-		// Default template config
-		$this->config['template'] = array(
+		// Template config
+		$defaultConfig = array(
 			'resources' => array(),
 			'templates' => array(
 				'common' => array(),
 				'optional' => array()
 			)
 		);
-
-		// Merge template config
-		$this->config = array_merge_recursive($this->config, array('template' => Neon::decode(file_get_contents($this->config['templateConfig']))));
+		$this->config['template'] = array_merge_recursive($defaultConfig, $this->parseTemplateConfig($this->config['templateConfig']));
 
 		// Check template
 		$this->checkTemplate();
 
 		return $this;
+	}
+
+	/**
+	 * Parses and returns the template configuration.
+	 *
+	 * @param string $fileName Template config file name
+	 * @return array
+	 */
+	private function parseTemplateConfig($fileName)
+	{
+		// Template config file name is not absolute
+		if (!preg_match('~/|[a-z]:~Ai', $fileName)) {
+			// Make a list of possible configuration file locations
+			$possibleFileNames = array();
+			if (isset($this->options['config'])) {
+				// If we have a config file, try relative to the config file directory first
+				$possibleFileNames[] = dirname($this->options['config']) . DIRECTORY_SEPARATOR . $fileName;
+			}
+			$possibleFileNames[] = getcwd() . DIRECTORY_SEPARATOR . $fileName;     // Relative to the cwd
+			$possibleFileNames[] = TEMPLATE_DIR . DIRECTORY_SEPARATOR . $fileName; // Relative to the ApiGen templates directory
+
+			foreach ($possibleFileNames as $possibleFileName) {
+				if (is_file($possibleFileName)) {
+					$fileName = realpath($possibleFileName);
+					break;
+				}
+			}
+		} else {
+			$fileName = realpath($fileName);
+		}
+
+		$this->config['templateConfig'] = $fileName;
+
+		if (!is_file($fileName)) {
+			throw new Exception(sprintf('Could not load template configuration file "%s".', $fileName), Exception::INVALID_CONFIG);
+		}
+
+		return Neon::decode(file_get_contents($fileName));
 	}
 
 	/**
@@ -307,10 +338,6 @@ class Config
 
 		if (empty($this->config['destination'])) {
 			throw new Exception('Destination is not set', Exception::INVALID_CONFIG);
-		}
-
-		if (!is_file($this->config['templateConfig'])) {
-			throw new Exception('Template config doesn\'t exist', Exception::INVALID_CONFIG);
 		}
 
 		if (!empty($this->config['baseUrl']) && !preg_match('~^https?://(?:[-a-z0-9]+\.)+[a-z]{2,6}(?:/.*)?$~i', $this->config['baseUrl'])) {
