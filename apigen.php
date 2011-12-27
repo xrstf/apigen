@@ -128,7 +128,11 @@ try {
 	$generator->output(vsprintf("Documentation for @count@%d@c classes, @count@%d@c constants, @count@%d@c functions and other @count@%d@c used PHP internal classes will be generated\n", array_slice($parsed, 4, 4)));
 
 	// Generating
-	$generator->output(sprintf("Using template config file @value@%s@c\n", $config->templateConfig));
+	if (count($config->templateConfig) > 1) {
+		$generator->output(sprintf("Using template config files\n @value@%s@c\n", implode("\n ", $config->templateConfig)));
+	} else {
+		$generator->output(sprintf("Using template config file @value@%s@c\n", $config->templateConfig[0]));
+	}
 
 	if ($config->wipeout && is_dir($config->destination)) {
 		$generator->output("Wiping out destination directory\n");

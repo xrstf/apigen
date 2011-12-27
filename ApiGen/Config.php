@@ -255,14 +255,9 @@ class Config
 		$this->check();
 
 		// Template config
-		$defaultConfig = array(
-			'resources' => array(),
-			'templates' => array(
-				'common' => array(),
-				'optional' => array()
-			)
-		);
-		$this->config['template'] = array_merge_recursive($defaultConfig, $this->parseTemplateConfig($this->config['templateConfig']));
+		$templateConfig = $this->config['templateConfig'];
+		$this->config['templateConfig'] = array();
+		$this->config['template'] = $this->parseTemplateConfig($templateConfig);
 
 		// Check template
 		$this->checkTemplate();
@@ -274,14 +269,28 @@ class Config
 	 * Parses and returns the template configuration.
 	 *
 	 * @param string $fileName Template config file name
+	 * @param string $parentFileName Parent template config file name
 	 * @return array
 	 */
-	private function parseTemplateConfig($fileName)
+	private function parseTemplateConfig($fileName, $parentFileName = null)
 	{
+		static $fileNamesStack = array();
+		static $defaultConfig = array(
+			'resources' => array(),
+			'templates' => array(
+				'common' => array(),
+				'optional' => array()
+			)
+		);
+
 		// Template config file name is not absolute
 		if (!preg_match('~/|[a-z]:~Ai', $fileName)) {
 			// Make a list of possible configuration file locations
 			$possibleFileNames = array();
+			if (null !== $parentFileName) {
+				// If we have a parent config file name, try relative to its firectory first
+				array_unshift($fileNames, dirname($parentFileName) . DIRECTORY_SEPARATOR . $fileName);
+			}
 			if (isset($this->options['config'])) {
 				// If we have a config file, try relative to the config file directory first
 				$possibleFileNames[] = dirname($this->options['config']) . DIRECTORY_SEPARATOR . $fileName;
@@ -299,13 +308,19 @@ class Config
 			$fileName = realpath($fileName);
 		}
 
-		$this->config['templateConfig'] = $fileName;
-
 		if (!is_file($fileName)) {
 			throw new Exception(sprintf('Could not load template configuration file "%s".', $fileName), Exception::INVALID_CONFIG);
 		}
 
-		$config = Neon::decode(file_get_contents($fileName));
+		// Infinite loop prevention
+		if (isset($fileNamesStack[$fileName])) {
+			throw new Exception('An infinite loop was detected when inheriting template configuration files.', Exception::INVALID_CONFIG);
+		}
+		$fileNamesStack[$fileName] = true;
+
+		$this->config['templateConfig'][] = $fileName;
+
+		$config = array_merge_recursive($defaultConfig, Neon::decode(file_get_contents($fileName)));
 
 		// Make all paths absolute so it will be possible to inherit them
 		$filePath = dirname($fileName);
@@ -324,7 +339,36 @@ class Config
 			}, $section);
 		}
 
+		// Templates inheritance
+		if (isset($config['parent'])) {
+			$parentConfig = $this->parseTemplateConfig($config['parent'], $fileName);
+
+			// We cannot simply use array_merge_recursive because of the way it merges arrays :(
+			$config = $this->mergeConfig($config, $parentConfig);
+		}
+		unset($config['parent']);
+
 		return $config;
+	}
+
+	/**
+	 * Recursively merge configurations.
+	 *
+	 * @param array $old Old configuration
+	 * @param array $new New configuration
+	 * @return array
+	 */
+	private function mergeConfig($old, $new)
+	{
+		foreach ($new as $key => $value) {
+			if (!isset($old[$key])) {
+				$old[$key] = $value;
+			} elseif (is_array($old[$key]) && is_array($value)) {
+				$old[$key] = $this->mergeConfig($old[$key], $value);
+			}
+		}
+
+		return $old;
 	}
 
 	/**
