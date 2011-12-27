@@ -340,17 +340,19 @@ class Generator extends Nette\Object
 		}
 
 		// Copy resources
-		foreach ($this->config->template['resources'] as $resourceDestination => $resourceSource) {
-			// File
-			if (is_file($resourceSource)) {
-				copy($resourceSource, $this->forceDir($this->config->destination . DIRECTORY_SEPARATOR . $resourceDestination));
-				continue;
-			}
+		foreach ($this->config->template['resources'] as $resourceDestination => $resourceSources) {
+			foreach ((array) $resourceSources as $resourceSource) {
+				// File
+				if (is_file($resourceSource)) {
+					copy($resourceSource, $this->forceDir($this->config->destination . DIRECTORY_SEPARATOR . $resourceDestination));
+					continue;
+				}
 
-			// Dir
-			$iterator = Nette\Utils\Finder::findFiles('*')->from($resourceSource)->getIterator();
-			foreach ($iterator as $item) {
-				copy($item->getPathName(), $this->forceDir($this->config->destination . DIRECTORY_SEPARATOR . $resourceDestination . DIRECTORY_SEPARATOR . $iterator->getSubPathName()));
+				// Dir
+				$iterator = Nette\Utils\Finder::findFiles('*')->from($resourceSource)->getIterator();
+				foreach ($iterator as $item) {
+					copy($item->getPathName(), $this->forceDir($this->config->destination . DIRECTORY_SEPARATOR . $resourceDestination . DIRECTORY_SEPARATOR . $iterator->getSubPathName()));
+				}
 			}
 		}
 

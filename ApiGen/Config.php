@@ -311,7 +311,7 @@ class Config
 		$filePath = dirname($fileName);
 
 		// Template resources
-		array_walk($config['resources'], function(&$value) use ($filePath) {
+		array_walk_recursive($config['resources'], function(&$value) use ($filePath) {
 			$value = $filePath . DIRECTORY_SEPARATOR . $value;
 		});
 
