@@ -55,34 +55,38 @@ class Environment
 
 		$rootDir = static::getRootDir();
 
-		spl_autoload_register(function($className) use ($rootDir) {
-			if ('ApiGen\\' === substr($className, 0, 7) && is_file($fileName = $rootDir . DIRECTORY_SEPARATOR . str_replace('\\', DIRECTORY_SEPARATOR, $className . '.php'))) {
-				LimitedScope::load($fileName);
-			} else {
-				@LimitedScope::load(str_replace('\\', DIRECTORY_SEPARATOR, $className . '.php'));
-			}
-		});
-
-		foreach (array('json', 'iconv', 'mbstring', 'tokenizer') as $extension) {
-			if (!extension_loaded($extension)) {
-				throw new Exception(sprintf("Required extension missing: %s\n", $extension), 1);
-			}
-		}
-
-		if (Environment::isPearPackage()) {
-			// PEAR package
-			@include 'Nette/loader.php';
-			@include 'Texy/texy.php';
+		if (self::isComposerPackage()) {
+			require $rootDir.'/libs/autoload.php';
 		} else {
-			// Standalone package
-			@include $rootDir . '/libs/Nette/Nette/loader.php';
-			@include $rootDir . '/libs/Texy/texy/texy.php';
+			spl_autoload_register(function($className) use ($rootDir) {
+				if ('ApiGen\\' === substr($className, 0, 7) && is_file($fileName = $rootDir . DIRECTORY_SEPARATOR . str_replace('\\', DIRECTORY_SEPARATOR, $className . '.php'))) {
+					LimitedScope::load($fileName);
+				} else {
+					@LimitedScope::load(str_replace('\\', DIRECTORY_SEPARATOR, $className . '.php'));
+				}
+			});
 
-			set_include_path(
-				$rootDir . '/libs/FSHL' . PATH_SEPARATOR .
-				$rootDir . '/libs/TokenReflection' . PATH_SEPARATOR .
-				get_include_path()
-			);
+			foreach (array('json', 'iconv', 'mbstring', 'tokenizer') as $extension) {
+				if (!extension_loaded($extension)) {
+					throw new Exception(sprintf("Required extension missing: %s\n", $extension), 1);
+				}
+			}
+
+			if (Environment::isPearPackage()) {
+				// PEAR package
+				@include 'Nette/loader.php';
+				@include 'Texy/texy.php';
+			} else {
+				// Standalone package
+				@include $rootDir . '/libs/Nette/Nette/loader.php';
+				@include $rootDir . '/libs/Texy/texy/texy.php';
+
+				set_include_path(
+					$rootDir . '/libs/FSHL' . PATH_SEPARATOR .
+					$rootDir . '/libs/TokenReflection' . PATH_SEPARATOR .
+					get_include_path()
+				);
+			}
 		}
 
 		if (!class_exists('Nette\\Diagnostics\\Debugger')) {
@@ -107,5 +111,16 @@ class Environment
 	public static function isPearPackage()
 	{
 		return false === strpos('@php_dir@', '@php_dir');
+	}
+
+	/**
+	 * Returns if ApiGen is installed via Composer.
+	 *
+	 * @return boolean
+	 */
+	public static function isComposerPackage()
+	{
+		$autoloader = static::getRootDir().'/libs/autoload.php';
+		return file_exists($autoloader);
 	}
 }
