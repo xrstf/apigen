@@ -131,10 +131,10 @@
 
 		<zip destfile="${releasedir}/${ant.project.name}-${version}-standalone.zip">
 			<zipfileset dir="ApiGen" prefix="apigen/ApiGen" />
-			<zipfileset dir="libs/FSHL" includes="FSHL/**/*, LICENSE" prefix="apigen/libs/FSHL" />
-			<zipfileset dir="libs/Nette" includes="Nette/**/*, license.txt" prefix="apigen/libs/Nette" />
-			<zipfileset dir="libs/Texy" includes="texy/**/*, license.txt" prefix="apigen/libs/Texy" />
-			<zipfileset dir="libs/TokenReflection" includes="TokenReflection/**/*, LICENSE" prefix="apigen/libs/TokenReflection" />
+			<zipfileset dir="libs/FSHL" includes="FSHL/**/*" prefix="apigen/libs/pear-pear.kukulich.cz/FSHL" />
+			<zipfileset dir="libs/nette/nette" includes="nette/**/*, license.txt" prefix="apigen/libs/nette/nette" />
+			<zipfileset dir="libs/dg/texy" includes="texy/**/*, license.txt" prefix="apigen/libs/dg/Texy" />
+			<zipfileset dir="libs/andrewsville/php-token-reflection" includes="php-token-reflection/**/*, LICENSE" prefix="apigen/libs/andrewsville/php-token-reflection" />
 			<zipfileset dir="templates" prefix="apigen/templates" />
 			<zipfileset dir="." includes="apigen.bat, apigen.neon.example, apigen.php, CHANGELOG.md, LICENSE.md, README.md" prefix="apigen" />
 		</zip>
